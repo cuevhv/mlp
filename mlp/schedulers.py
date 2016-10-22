@@ -8,8 +8,7 @@ training run.
 
 import numpy as np
 
-
-class ConstantLearningRateScheduler(object):
+class ConstantLearningateScheduler(object):
     """Example of scheduler interface which sets a constant learning rate."""
 
     def __init__(self, learning_rate):
