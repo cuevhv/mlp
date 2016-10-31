@@ -92,7 +92,7 @@ class MomentumLearningRule(GradientDescentLearningRule):
     is the system and so how quickly previous momentum contributions decay.
     """
 
-    def __init__(self, learning_rate=1e-3, mom_coeff=0.9):
+    def __init__(self, learning_rate, mom_coeff): #1e-3
         """Creates a new learning rule object.
 
         Args:
@@ -160,3 +160,191 @@ class MomentumLearningRule(GradientDescentLearningRule):
             mom *= self.mom_coeff
             mom -= self.learning_rate * grad
             param += mom
+
+            
+            
+            
+#########
+class AdaGrad(GradientDescentLearningRule):
+    """Gradient descent with momentum learning rule.
+
+    This extends the basic gradient learning rule by introducing extra
+    momentum state variables for each parameter. These can help the learning
+    dynamic help overcome shallow local minima and speed convergence when
+    making multiple successive steps in a similar direction in parameter space.
+
+    For parameter p[i] and corresponding momentum m[i] the updates for a
+    scalar loss function `L` are of the form
+
+        m[i] := mom_coeff * m[i] - learning_rate * dL/dp[i]
+        p[i] := p[i] + m[i]
+
+    with `learning_rate` a positive scaling parameter for the gradient updates
+    and `mom_coeff` a value in [0, 1] that determines how much 'friction' there
+    is the system and so how quickly previous momentum contributions decay.
+    """
+
+    def __init__(self, learning_rate, eps): #1e-3
+        """Creates a new learning rule object.
+
+        Args:
+            learning_rate: A postive scalar to scale gradient updates to the
+                parameters by. This needs to be carefully set - if too large
+                the learning dynamic will be unstable and may diverge, while
+                if set too small learning will proceed very slowly.
+            mom_coeff: A scalar in the range [0, 1] inclusive. This determines
+                the contribution of the previous momentum value to the value
+                after each update. If equal to 0 the momentum is set to exactly
+                the negative scaled gradient each update and so this rule
+                collapses to standard gradient descent. If equal to 1 the
+                momentum will just be decremented by the scaled gradient at
+                each update. This is equivalent to simulating the dynamic in
+                a frictionless system. Due to energy conservation the loss
+                of 'potential energy' as the dynamics moves down the loss
+                function surface will lead to an increasingly large 'kinetic
+                energy' and so speed, meaning the updates will become
+                increasingly large, potentially unstably so. Typically a value
+                less than but close to 1 will avoid these issues and cause the
+                dynamic to converge to a local minima where the gradients are
+                by definition zero.
+        """
+        super(AdaGrad, self).__init__(learning_rate)
+        self.eps = eps
+
+    def initialise(self, params):
+        """Initialises the state of the learning rule for a set or parameters.
+
+        This must be called before `update_params` is first called.
+
+        Args:
+            params: A list of the parameters to be optimised. Note these will
+                be updated *in-place* to avoid reallocating arrays on each
+                update.
+        """
+        super(AdaGrad, self).initialise(params)
+        self.caches = []
+        for param in self.params:
+            self.caches.append(np.zeros_like(param))
+
+    def reset(self):
+        """Resets any additional state variables to their initial values.
+
+        For this learning rule this corresponds to zeroing all the momenta.
+        """
+        for cache in self.caches:
+            cache *= 0.
+
+    def update_params(self, grads_wrt_params):
+        """Applies a single update to all parameters.
+
+        All parameter updates are performed using in-place operations and so
+        nothing is returned.
+
+        Args:
+            grads_wrt_params: A list of gradients of the scalar loss function
+                with respect to each of the parameters passed to `initialise`
+                previously, with this list expected to be in the same order.
+        """
+        
+        for param, cache, grad in zip(self.params, self.caches, grads_wrt_params):
+            cache += grad**2
+            top = - self.learning_rate * grad
+            down = (np.sqrt(cache) + self.eps)
+            param +=  top/ down 
+
+#################################
+class Adam(GradientDescentLearningRule):
+    """Gradient descent with momentum learning rule.
+
+    This extends the basic gradient learning rule by introducing extra
+    momentum state variables for each parameter. These can help the learning
+    dynamic help overcome shallow local minima and speed convergence when
+    making multiple successive steps in a similar direction in parameter space.
+
+    For parameter p[i] and corresponding momentum m[i] the updates for a
+    scalar loss function `L` are of the form
+
+        m[i] := mom_coeff * m[i] - learning_rate * dL/dp[i]
+        p[i] := p[i] + m[i]
+
+    with `learning_rate` a positive scaling parameter for the gradient updates
+    and `mom_coeff` a value in [0, 1] that determines how much 'friction' there
+    is the system and so how quickly previous momentum contributions decay.
+    """
+
+    def __init__(self, learning_rate, alpha, beta, eps): #1e-3
+        """Creates a new learning rule object.
+
+        Args:
+            learning_rate: A postive scalar to scale gradient updates to the
+                parameters by. This needs to be carefully set - if too large
+                the learning dynamic will be unstable and may diverge, while
+                if set too small learning will proceed very slowly.
+            mom_coeff: A scalar in the range [0, 1] inclusive. This determines
+                the contribution of the previous momentum value to the value
+                after each update. If equal to 0 the momentum is set to exactly
+                the negative scaled gradient each update and so this rule
+                collapses to standard gradient descent. If equal to 1 the
+                momentum will just be decremented by the scaled gradient at
+                each update. This is equivalent to simulating the dynamic in
+                a frictionless system. Due to energy conservation the loss
+                of 'potential energy' as the dynamics moves down the loss
+                function surface will lead to an increasingly large 'kinetic
+                energy' and so speed, meaning the updates will become
+                increasingly large, potentially unstably so. Typically a value
+                less than but close to 1 will avoid these issues and cause the
+                dynamic to converge to a local minima where the gradients are
+                by definition zero.
+        """
+        super(Adam, self).__init__(learning_rate)
+        self.alpha = alpha
+        self.beta = beta
+        self.eps = eps
+
+    def initialise(self, params):
+        """Initialises the state of the learning rule for a set or parameters.
+
+        This must be called before `update_params` is first called.
+
+        Args:
+            params: A list of the parameters to be optimised. Note these will
+                be updated *in-place* to avoid reallocating arrays on each
+                update.
+        """
+        super(Adam, self).initialise(params)
+        self.emes = []
+        self.ves = []
+        for param in self.params:
+            self.emes.append(np.zeros_like(param))
+            self.ves.append(np.zeros_like(param))
+
+    def reset(self):
+        """Resets any additional state variables to their initial values.
+
+        For this learning rule this corresponds to zeroing all the momenta.
+        """
+        for m in self.emes:
+            m *= 0.
+        for v in self.ves:
+            v *= 0.
+
+    def update_params(self, grads_wrt_params):
+        """Applies a single update to all parameters.
+
+        All parameter updates are performed using in-place operations and so
+        nothing is returned.
+
+        Args:
+            grads_wrt_params: A list of gradients of the scalar loss function
+                with respect to each of the parameters passed to `initialise`
+                previously, with this list expected to be in the same order.
+        """
+        
+        for param, m, v, grad in zip(self.params, self.emes, self.ves, grads_wrt_params):           
+            m = self.alpha*m + (1-self.alpha)*grad
+            v = self.beta*v + (1-self.beta)*(grad**2)
+            param += - self.learning_rate * m / (np.sqrt(v) + self.eps)
+
+
+
+ 
